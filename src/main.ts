@@ -36,6 +36,8 @@ import { renderCountryList } from './components/CountryCard';
 import { openModal } from './components/CountryModal';
 import { getRequiredElement, showElement, hideElement, onDOMReady, debounce } from './utils/dom';
 
+import { getFavorites, toggleFavorite } from './utils/storage';
+
 // =============================================================================
 // ESTADO DE LA APLICACIÓN
 // =============================================================================
@@ -72,6 +74,8 @@ let countriesList: HTMLElement;
 //Referencia al dropdown
 let regionsSelect: HTMLSelectElement
 
+let favoritesOnlyCheckbox: HTMLInputElement;
+
 /**
  * Inicializa las referencias a los elementos del DOM.
  * Se llama una vez cuando la aplicación arranca.
@@ -89,6 +93,8 @@ function initializeElements(): void {
 
   //Inicializacion de la referencia
   regionsSelect= getRequiredElement<HTMLSelectElement>('#regions-select');
+
+  favoritesOnlyCheckbox = getRequiredElement<HTMLInputElement>('#favorites-only');
 }
 
 // =============================================================================
@@ -214,21 +220,27 @@ async function handleSearch(): Promise<void> {
     // await pausa la ejecución hasta que la Promise se resuelve.
     // Si la Promise se rechaza, el error se captura en el catch.
     // =========================================================================
-    const countries = await searchCountries(query);
+    let countries = await searchCountries(query);
 
       //clasificacion por region
-    let countriesR;
+    //let countriesR;
 
     if(selectedRegion){
-      countriesR= countries.filter(country => country.region == selectedRegion);
+      countries= countries.filter(country => country.region == selectedRegion);
     } else{
-      countriesR=countries;
+      countries=countries;
     }
 
-    if (countriesR.length === 0) {
+    //Filtro de favortios
+    if (favoritesOnlyCheckbox.checked) {
+      const favorites = getFavorites();
+      countries = countries.filter(c => favorites.includes(c.cca3));
+    }
+
+    if (countries.length === 0) {
       render({ status: 'empty' });
     } else {
-      render({ status: 'success', data: countriesR });
+      render({ status: 'success', data: countries });
     }
   } catch (error) {
     // Determinamos el mensaje de error apropiado
@@ -305,10 +317,35 @@ function setupEventListeners(): void {
   retryButton.addEventListener('click', handleRetry);
 
 
+
+
   //Cambio en el dropdown
   regionsSelect.addEventListener('change', () => {selectedRegion= regionsSelect.value;
     void handleSearch();
   })
+
+
+  favoritesOnlyCheckbox.addEventListener('change', () => {
+    void handleSearch(); 
+  });
+
+  
+document.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement;
+  const favButton = target.closest('.favorite-btn') as HTMLElement | null;
+  
+  if (!favButton) return;
+
+  const code = favButton.dataset.code;
+  if (!code) return;
+
+  // Cambiamos el corazón directamente sin recargar toda la lista
+  const isFav = favButton.textContent === '❤️';
+  favButton.textContent = isFav ? '🤍' : '❤️';
+
+  toggleFavorite(code);
+});
+  
 }
 
 /**
