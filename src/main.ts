@@ -187,7 +187,6 @@ function render(state: UiState): void {
  */
 
 
-
 async function handleSearch(): Promise<void> {
   const query = searchInput.value.trim();
 
